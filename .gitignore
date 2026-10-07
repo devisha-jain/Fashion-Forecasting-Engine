@@ -1,0 +1,40 @@
+# Environment Variables & Secrets
+.env
+.env*.local
+backend/.env
+frontend/.env
+frontend/.env*.local
+
+# Python Virtual Environments & Bytecode
+venv/
+.venv/
+env/
+__pycache__/
+*/__pycache__/
+*/**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Node & Next.js Build Artifacts
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+frontend/out/
+build/
+dist/
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing & Coverage
+.coverage
+htmlcov/
+.pytest_cache/

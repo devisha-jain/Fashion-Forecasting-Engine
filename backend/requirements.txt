@@ -1,0 +1,7 @@
+flask==3.0.3
+flask-cors==4.0.1
+scikit-learn==1.5.0
+pydantic==2.7.4
+google-genai==0.1.1
+vaderSentiment==3.3.2
+pytrends==4.9.2
