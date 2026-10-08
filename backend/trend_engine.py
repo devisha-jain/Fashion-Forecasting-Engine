@@ -217,159 +217,58 @@ def generate_forecast(region: str, year: str, signals: List[str], query: Optiona
 
         signal_strength[sig] = min(98, max(45, int(score)))
 
-    # Curated knowledge base augmented with NLP & LLM semantics
-    base_templates = {
-        "bollywood": {
-            "name": "Luxury Minimal Ethnic",
-            "category": "Festive Occasionwear",
-            "garment": "Monochrome Raw Silk Kurta & Draped Skirt",
-            "material": "Chanderi Silk & Raw Silk",
-            "colour": "Ivory & Chai Earth Tones",
-            "silhouette": "Structured Minimalist Tailoring",
-            "aesthetic": "Indo-Western Quiet Luxury",
-            "default_desc": f"Understated, monochrome festive ethnic looks inspired by modern Bollywood styling are experiencing high search velocity in {region} for {year}.",
-            "palette": ["#fdfbf7", "#f5f5dc", "#d2b48c", "#8b5a2b"],
-            "demographics": {"Gen-Z": 60, "Millennials": 30, "Gen-X": 10},
-            "image": "luxury_minimal.png",
-            "sources": ["Google Trends Live", "Pinterest Culture Signals"]
-        },
-        "kpop": {
-            "name": "Ethnic Streetwear Fusion",
-            "category": "Gen-Z Streetwear",
-            "garment": "Cargo Dhoti Pants & Cropped Bandhani Bomber",
-            "material": "Organic Handloom Cotton & Modal",
-            "colour": "Indigo & Cobalt Blue",
-            "silhouette": "Oversized Boxy Silhouette",
-            "aesthetic": "Streetwear Fusion",
-            "default_desc": f"Youth-driven intersection of Seoul streetwear aesthetics with traditional Indian textiles and baggy cargo drapes.",
-            "palette": ["#1a1a2e", "#16213e", "#0f3460", "#e94560"],
-            "demographics": {"Gen-Z": 75, "Millennials": 20, "Gen-X": 5},
-            "image": "streetwear_fusion.png",
-            "sources": ["Google Trends Live", "Instagram Style Feeds"]
-        },
-        "college": {
-            "name": "Campus Desi Core",
-            "category": "Youth Casuals",
-            "garment": "Short Kurti with Wide-Leg Denim",
-            "material": "Mulmul Cotton & Indigo Denim",
-            "colour": "Butter Yellow & Indigo Blue",
-            "silhouette": "Relaxed Everyday Fit",
-            "aesthetic": "Collegecore",
-            "default_desc": f"Everyday campus fusion pairing breezy cotton kurtis with wide-leg denims, silver oxidized jewelry, and canvas totes.",
-            "palette": ["#fef08a", "#93c5fd", "#3b82f6", "#1e3a8a"],
-            "demographics": {"Gen-Z": 85, "Millennials": 12, "Gen-X": 3},
-            "image": "college_core.png",
-            "sources": ["Google Trends Live", "Campus Search Velocity"]
-        },
-        "festive": {
-            "name": "Contemporary Festive Saree Drapes",
-            "category": "Occasionwear",
-            "garment": "Pre-Draped Saree with Corset Blouse",
-            "material": "Tissue Organza & Satin Silk",
-            "colour": "Terracotta & Chrome Gold",
-            "silhouette": "Fluid Form-Fitting Drapes",
-            "aesthetic": "Modern Festive Craftcore",
-            "default_desc": f"High conversion occasionwear bridging time-honored artisanal weaves with ready-to-wear pre-stitched silhouettes.",
-            "palette": ["#e07a5f", "#3d405a", "#81b29a", "#f2cc8f"],
-            "demographics": {"Gen-Z": 50, "Millennials": 40, "Gen-X": 10},
-            "image": "festive_1.jpg",
-            "sources": ["Google Trends Live", "Wedding Season Forecast"]
-        },
-        "regional": {
-            "name": "Artisanal Handloom Renaissance",
-            "category": "Heritage Slow Fashion",
-            "garment": "Ajrakh Overlay Jacket & Khadi Co-ord",
-            "material": "Handspun Khadi & Vegetable-Dyed Silk",
-            "colour": "Earthy Olive & Rust Red",
-            "silhouette": "Structured Layering",
-            "aesthetic": "Craftcore Revival",
-            "default_desc": f"Resurgence of regional block-printing and hand-weaving techniques repurposed for contemporary urban workwear and casual layering.",
-            "palette": ["#588157", "#3a5a40", "#dad7cd", "#a3b18a"],
-            "demographics": {"Gen-Z": 45, "Millennials": 45, "Gen-X": 10},
-            "image": "regional_handloom.png",
-            "sources": ["Google Trends Live", "Textile Guild Reports"]
-        }
-    }
-
     for sig in signals:
-        sig_lower = sig.lower()
-        matched_key = None
-        for key in base_templates:
-            if key in sig_lower:
-                matched_key = key
-                break
-
-        if matched_key:
-            template = base_templates[matched_key]
-        else:
-            template = {
-                "name": f"{sig.title()} Contemporary Movement",
-                "category": "Apparel & Lifestyle",
-                "garment": "Modular Fusion Silhouette",
-                "material": "Handloom Cotton & Linen",
-                "colour": "Earthy Neutrals",
-                "silhouette": "Fluid & Tailored",
-                "aesthetic": f"{sig.title()} Fusion",
-                "default_desc": f"A notable shift towards {sig} across {region} for the {year} market cycle.",
-                "palette": ["#cba89a", "#8b5a2b", "#d2b48c", "#50352d"],
-                "demographics": {"Gen-Z": 60, "Millennials": 30, "Gen-X": 10},
-                "image": "luxury_minimal.png",
-                "sources": ["Google Trends Live", "Social Listening"]
-            }
-
-        # Query semantic LLM analysis
-        llm_analysis = llm_client.analyze_trend_semantics(
-            trend_name=template["name"],
+        # Dynamically query Gemini API for complete trend profile using GEMINI_API_KEY
+        profile = llm_client.generate_trend_profile(
+            signal=sig,
             region=region,
             year=year,
-            signal_strength=signal_strength,
-            signal_type=sig,
-            keywords=[template["garment"], template["material"], template["aesthetic"]]
+            query=query
         )
 
         gt_score = float(signal_strength.get(sig, 70))
         score_res = trend_scorer.compute_score(
             gt_momentum=gt_score,
             nlp_prominence=75.0,
-            semantic_confidence=85.0,
+            semantic_confidence=profile.confidence * 100.0,
             sentiment_valence=70.0,
             source_count=3
         )
 
-        yearly_forecast = _build_yearly_forecast(score_res["trend_score"], year)
+        yearly_forecast = profile.yearly_forecast or _build_yearly_forecast(score_res["trend_score"], year)
 
-        # Fetch 3 dynamic visual images from Unsplash or local gallery
-        dynamic_images = fetch_unsplash_images(f"{template['name']} {template['aesthetic']}")
+        # Fetch dynamic visual images from Unsplash API using UNSPLASH_ACCESS_KEY
+        dynamic_images = fetch_unsplash_images(f"{profile.name} {profile.aesthetic}")
 
         trend_card = {
-            "name": template["name"],
-            "category": template["category"],
-            "garment": template["garment"],
-            "material": template["material"],
-            "colour": template["colour"],
-            "silhouette": template["silhouette"],
-            "aesthetic": template["aesthetic"],
-            "confidence": 0.88,
+            "name": profile.name,
+            "category": profile.category,
+            "garment": profile.garment,
+            "material": profile.material,
+            "colour": profile.colour,
+            "silhouette": profile.silhouette,
+            "aesthetic": profile.aesthetic,
+            "confidence": profile.confidence,
             "trend_score": score_res["trend_score"],
             "trend_stage": score_res["trend_stage"],
             "market_relevance_score": score_res["trend_score"],
             "momentum": f"{score_res['trend_stage']} Momentum ↗",
-            "description": llm_analysis.description or template["default_desc"],
-            "business": llm_analysis.strategic_advice,
-            "strategic_advice": llm_analysis.strategic_advice,
-            "consumer_drivers": llm_analysis.consumer_drivers,
-            "risks": llm_analysis.risks,
-            "targetDemographic": llm_analysis.target_demographic,
-            "peakSeason": llm_analysis.peak_season,
-            "competitorActivity": llm_analysis.competitor_activity,
+            "description": profile.description,
+            "business": profile.strategic_advice,
+            "strategic_advice": profile.strategic_advice,
+            "consumer_drivers": profile.consumer_drivers,
+            "risks": profile.risks,
+            "targetDemographic": profile.target_demographic,
+            "peakSeason": profile.peak_season,
+            "competitorActivity": profile.competitor_activity,
             "yearlyForecast": yearly_forecast,
             "score_breakdown": score_res["breakdown"],
-            "palette": template["palette"],
+            "palette": profile.palette,
             "graph": signal_strength,
-            "demographics": template["demographics"],
-            "image": template["image"],
+            "demographics": profile.demographics,
+            "image": dynamic_images[0] if dynamic_images else "luxury_minimal.png",
             "images": dynamic_images,
-            "sources": template["sources"]
+            "sources": ["Google Gemini AI", "Unsplash API", "Live Market Signals"]
         }
         trends.append(trend_card)
 

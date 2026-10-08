@@ -135,7 +135,7 @@ def home():
         "system": "AI-Powered Fashion Trend Intelligence & Forecasting System",
         "academic_discipline": "Natural Language Processing (NLP) & Large Language Models (LLM)",
         "framework": "Flask / Python 3.12",
-        "llm_engine": f"Google Gemini API ({app_config.get('llm', {}).get('model', 'gemini-3.8-flash')})",
+        "llm_engine": f"Google Gemini API ({app_config.get('llm', {}).get('model', 'gemini-2.5-flash')})",
         "nlp_pipeline": {
             "modules": ["Preprocessing", "TF-IDF Keyword Extraction", "Named Entity Recognition", "Fashion Sentiment Analysis", "Trend Intelligence Scoring"],
             "status": "online"
@@ -160,7 +160,7 @@ def get_config():
         }),
         "llm": {
             "provider": app_config.get("llm", {}).get("provider", "google"),
-            "model": app_config.get("llm", {}).get("model", "gemini-3.8-flash"),
+            "model": app_config.get("llm", {}).get("model", "gemini-2.5-flash"),
             "temperature": app_config.get("llm", {}).get("temperature", 0.2),
             "max_output_tokens": app_config.get("llm", {}).get("max_output_tokens", 2048),
             "retry_count": app_config.get("llm", {}).get("retry_count", 2)

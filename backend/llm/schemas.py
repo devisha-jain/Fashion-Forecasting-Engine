@@ -50,3 +50,26 @@ class ForecastTrajectoryResponse(BaseModel):
     forecast_rationale: str = Field(default="", description="Adoption curve explanation")
     demographic_split: Dict[str, float] = Field(default_factory=dict, description="Age bracket breakdown")
     dominant_color_palette: List[str] = Field(default_factory=list, description="Hex color codes")
+
+
+class DynamicTrendProfile(BaseModel):
+    name: str = Field(..., description="Distinct trend title")
+    category: str = Field(default="Womenswear / Contemporary Fusion", description="Apparel category")
+    garment: str = Field(default="Co-ord & Modern Silhouette", description="Key garment")
+    material: str = Field(default="Handloom Cotton & Silk", description="Fabric and textiles")
+    colour: str = Field(default="Earth Tones", description="Color direction")
+    silhouette: str = Field(default="Structured Fluid Tailoring", description="Key silhouette")
+    aesthetic: str = Field(default="Contemporary Indian Fusion", description="Aesthetic style")
+    description: str = Field(default="", description="2-3 sentence trend description")
+    strategic_advice: str = Field(default="", description="Strategic merchandising advice")
+    consumer_drivers: List[str] = Field(default_factory=list, description="Consumer adoption drivers")
+    risks: str = Field(default="", description="Commercial and material risks")
+    peak_season: str = Field(default="Festive Q3-Q4", description="Peak season")
+    target_demographic: str = Field(default="Urban Youth (18-32)", description="Target demographic")
+    competitor_activity: str = Field(default="", description="Competitor and designer response")
+    palette: List[str] = Field(default_factory=lambda: ["#2d3748", "#4a5568", "#cbd5e0", "#e2e8f0"], description="Color hex palette")
+    demographics: Dict[str, float] = Field(default_factory=lambda: {"Gen-Z": 60, "Millennials": 30, "Gen-X": 10}, description="Demographic breakdown")
+    yearly_forecast: List[Dict[str, Any]] = Field(default_factory=list, description="5-year forecast points")
+    confidence: float = Field(default=0.88, ge=0.0, le=1.0)
+    trend_score: float = Field(default=75.0, ge=0.0, le=100.0)
+
