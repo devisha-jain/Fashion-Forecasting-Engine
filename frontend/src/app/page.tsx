@@ -9,6 +9,7 @@ import { FASHION_KEYWORDS } from "@/components/keywords";
 import Navbar from "@/components/Navbar";
 import AboutSection from "@/components/AboutSection";
 import Footer from "@/components/Footer";
+import { API_BASE } from "@/lib/api";
 
 export default function Home() {
   const [region, setRegion] = useState("Pan India");

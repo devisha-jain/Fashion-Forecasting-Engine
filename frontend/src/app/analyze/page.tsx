@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { API_BASE } from "@/lib/api";
 
 export default function AnalyzePage() {
   const [inputText, setInputText] = useState("");
@@ -19,7 +20,7 @@ export default function AnalyzePage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/analyze", {
+      const res = await fetch(`${API_BASE}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: inputText, region, year }),
