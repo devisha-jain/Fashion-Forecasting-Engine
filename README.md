@@ -187,7 +187,7 @@ source venv/bin/activate
 pip install -r backend/requirements.txt
 
 # Run Flask Backend Server (Port 5000)
-python backend/app.py
+python -m flask --app backend/app.py run --port 5000
 ```
 
 ### Step 4: Frontend Setup & Run
@@ -209,7 +209,31 @@ npm run dev
 
 ---
 
-## 🧪 9. Running Tests
+## ☁️ 9. Deployment to Vercel
+
+The repository is configured for unified serverless deployment via root [`vercel.json`](file:///vercel.json):
+
+1. **Push your code to GitHub**:
+   ```bash
+   git add .
+   git commit -m "Deploy to Vercel"
+   git push origin main
+   ```
+2. **Import Project in Vercel**:
+   - Go to [vercel.com](https://vercel.com) → **Add New Project**.
+   - Select your GitHub repository (`Fashion-Forcasting-Lab`).
+   - Leave Root Directory as `./` (default).
+3. **Configure Environment Variables**:
+   In Vercel Project Settings → **Environment Variables**, add:
+   - `GEMINI_API_KEY`: *(Required)* Your Google Gemini API key.
+   - `UNSPLASH_ACCESS_KEY`: *(Optional)* Unsplash developer key for live moodboard images.
+   - `ALLOWED_ORIGINS`: `*` (or your production Vercel domain).
+4. **Deploy**:
+   - Vercel automatically builds both Next.js (`frontend/package.json`) and the Python Flask serverless function (`backend/app.py`), routing `/api/*` requests directly to Flask.
+
+---
+
+## 🧪 10. Running Tests
 
 Execute the automated test suite to verify the NLP pipeline, keyword extraction, NER, sentiment analyzer, scoring, and prompt loaders:
 ```bash

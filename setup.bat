@@ -17,7 +17,7 @@ echo.
 echo === SETUP COMPLETE ===
 echo.
 echo To run the application:
-echo   Terminal 1 (Backend):  venv\Scripts\python.exe backend\app.py
+echo   Terminal 1 (Backend):  venv\Scripts\python.exe -m flask --app backend\app.py run --port 5000
 echo   Terminal 2 (Frontend): cd frontend ^&^& npm run dev
 echo.
 echo Then open http://localhost:3000 in your browser.

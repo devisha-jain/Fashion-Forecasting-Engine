@@ -21,10 +21,12 @@ node_modules/
 frontend/node_modules/
 .next/
 frontend/.next/
+.vercel/
 out/
 frontend/out/
 build/
 dist/
+*.tsbuildinfo
 
 # OS & Editor Files
 .DS_Store
