@@ -50,17 +50,14 @@ else:
     CORS(app, origins="*")
     print("[INFO] CORS enabled for all origins (*)")
 
-# Load config.yaml if available (checks backend/config first, then root/config)
-config_path = os.path.join(backend_dir, "config", "config.yaml")
-if not os.path.exists(config_path):
-    config_path = os.path.join(os.path.dirname(backend_dir), "config", "config.yaml")
-
+# Load config.yaml if available
+config_path = os.path.join(os.path.dirname(backend_dir), "config", "config.yaml")
 app_config = {}
 if yaml and os.path.exists(config_path):
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             app_config = yaml.safe_load(f) or {}
-            print(f"[INFO] Loaded configuration from {config_path}")
+            print("[INFO] Loaded configuration from config/config.yaml")
     except Exception as e:
         print(f"[WARN] Failed to load config.yaml: {e}")
 
@@ -138,7 +135,7 @@ def home():
         "system": "AI-Powered Fashion Trend Intelligence & Forecasting System",
         "academic_discipline": "Natural Language Processing (NLP) & Large Language Models (LLM)",
         "framework": "Flask / Python 3.12",
-        "llm_engine": f"Google Gemini API ({app_config.get('llm', {}).get('model', 'gemini-2.5-flash')})",
+        "llm_engine": f"Google Gemini API ({app_config.get('llm', {}).get('model', 'gemini-3.8-flash')})",
         "nlp_pipeline": {
             "modules": ["Preprocessing", "TF-IDF Keyword Extraction", "Named Entity Recognition", "Fashion Sentiment Analysis", "Trend Intelligence Scoring"],
             "status": "online"
@@ -163,7 +160,7 @@ def get_config():
         }),
         "llm": {
             "provider": app_config.get("llm", {}).get("provider", "google"),
-            "model": app_config.get("llm", {}).get("model", "gemini-2.5-flash"),
+            "model": app_config.get("llm", {}).get("model", "gemini-3.8-flash"),
             "temperature": app_config.get("llm", {}).get("temperature", 0.2),
             "max_output_tokens": app_config.get("llm", {}).get("max_output_tokens", 2048),
             "retry_count": app_config.get("llm", {}).get("retry_count", 2)
@@ -278,10 +275,3 @@ def api_analyze():
     cache_set(cache_key, analysis_result)
 
     return jsonify(analysis_result)
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    print(f"[INFO] Starting Fashion Forecasting Server on http://127.0.0.1:{port}")
-    app.run(host="0.0.0.0", port=port, debug=True)
-
