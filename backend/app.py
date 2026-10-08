@@ -50,14 +50,17 @@ else:
     CORS(app, origins="*")
     print("[INFO] CORS enabled for all origins (*)")
 
-# Load config.yaml if available
-config_path = os.path.join(os.path.dirname(backend_dir), "config", "config.yaml")
+# Load config.yaml if available (checks backend/config first, then root/config)
+config_path = os.path.join(backend_dir, "config", "config.yaml")
+if not os.path.exists(config_path):
+    config_path = os.path.join(os.path.dirname(backend_dir), "config", "config.yaml")
+
 app_config = {}
 if yaml and os.path.exists(config_path):
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             app_config = yaml.safe_load(f) or {}
-            print("[INFO] Loaded configuration from config/config.yaml")
+            print(f"[INFO] Loaded configuration from {config_path}")
     except Exception as e:
         print(f"[WARN] Failed to load config.yaml: {e}")
 
@@ -275,3 +278,10 @@ def api_analyze():
     cache_set(cache_key, analysis_result)
 
     return jsonify(analysis_result)
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    print(f"[INFO] Starting Fashion Forecasting Server on http://127.0.0.1:{port}")
+    app.run(host="0.0.0.0", port=port, debug=True)
+

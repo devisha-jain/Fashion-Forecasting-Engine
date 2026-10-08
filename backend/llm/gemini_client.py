@@ -37,7 +37,9 @@ def _load_system_config() -> Dict[str, Any]:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     backend_dir = os.path.dirname(current_dir)
     root_dir = os.path.dirname(backend_dir)
-    config_path = os.path.join(root_dir, "config", "config.yaml")
+    config_path = os.path.join(backend_dir, "config", "config.yaml")
+    if not os.path.exists(config_path):
+        config_path = os.path.join(root_dir, "config", "config.yaml")
     
     if yaml and os.path.exists(config_path):
         try:
