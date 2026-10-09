@@ -1,7 +1,8 @@
 """
 Gemini LLM Client for Fashion Trend Intelligence.
 Handles API calls with Google GenAI SDK, structured JSON output enforcement,
-Pydantic response validation, automatic retry, and deterministic fallback.
+Pydantic response validation, automatic retry, and model fallbacks.
+All fashion forecasts and trend extractions are generated dynamically via Gemini API.
 """
 
 import os
@@ -18,6 +19,10 @@ except ImportError:
 try:
     from dotenv import load_dotenv
     load_dotenv()
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    root_env = os.path.join(os.path.dirname(os.path.dirname(current_dir)), ".env")
+    if os.path.exists(root_env):
+        load_dotenv(root_env)
 except ImportError:
     pass
 
@@ -25,7 +30,7 @@ from .prompt_loader import PromptLoader
 from .schemas import (
     TrendExtractionResponse,
     TrendAnalysisResponse,
-    ForecastTrajectoryResponse,
+    SignalForecastResponse,
     ExtractedTrendItem,
     YearlyForecastPoint
 )
@@ -54,8 +59,14 @@ class GeminiFashionClient:
         self.config = _load_system_config()
         llm_cfg = self.config.get("llm", {})
         
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
-        self.model_name = model_name or llm_cfg.get("model", "gemini-3.8-flash")
+        raw_key = api_key or os.getenv("GEMINI_API_KEY") or ""
+        self.api_key = raw_key.strip().strip('"').strip("'")
+        configured_model = model_name or llm_cfg.get("model", "gemini-2.5-flash")
+        if "3.8" in configured_model:
+            configured_model = "gemini-2.5-flash"
+            
+        self.model_name = configured_model
+        self.fallback_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
         self.retry_count = int(llm_cfg.get("retry_count", 2))
         self.prompt_loader = PromptLoader()
         self.client = None
@@ -71,7 +82,7 @@ class GeminiFashionClient:
                 print(f"[WARN] Gemini Client initialization failed: {e}")
                 self.is_available = False
         else:
-            print("[INFO] GEMINI_API_KEY not configured. Running in deterministic heuristic fallback mode.")
+            print("[WARN] GEMINI_API_KEY not configured in environment.")
 
     def _clean_json_response(self, text: str) -> str:
         """Extracts and repairs JSON substring from LLM response text."""
@@ -92,6 +103,43 @@ class GeminiFashionClient:
         if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
             clean = clean[start_idx:end_idx + 1]
         return clean
+
+    def _generate_validated(self, prompt: str, schema, retry_delay: float = 0.5):
+        """
+        Calls Gemini with candidate model fallbacks and validates JSON reply against a Pydantic schema.
+        Raises an error with details if the API fails.
+        """
+        if not self.is_available or not self.client:
+            raise RuntimeError(
+                "Gemini API key is not configured or client failed to initialize. "
+                "Please configure a valid GEMINI_API_KEY in your .env file."
+            )
+
+        # Build prioritized candidate models
+        candidate_models = [self.model_name]
+        for m in self.fallback_models:
+            if m not in candidate_models:
+                candidate_models.append(m)
+
+        last_error = None
+        for model in candidate_models:
+            for attempt in range(max(1, self.retry_count)):
+                try:
+                    response = self.client.models.generate_content(
+                        model=model,
+                        contents=prompt
+                    )
+                    cleaned = self._clean_json_response(response.text or "")
+                    parsed = json.loads(cleaned)
+                    result = schema(**parsed)
+                    # Cache the working model
+                    self.model_name = model
+                    return result
+                except Exception as e:
+                    last_error = e
+                    time.sleep(retry_delay)
+
+        raise RuntimeError(f"Gemini API error ({self.model_name}): {last_error}")
 
     def extract_trends_from_text(
         self,
@@ -125,46 +173,44 @@ class GeminiFashionClient:
             entities=ent_str
         )
 
-        if self.is_available and self.client:
-            try:
-                validated = self._generate_validated(prompt, TrendExtractionResponse, retry_delay=0.5)
-                return self._extraction_payload(validated.model_dump(), self.model_name, start_time)
-            except Exception as e:
-                # If API attempts fail, fail gracefully to NLP heuristic
-                print(f"[WARN] Gemini extraction failed ({e}). Using deterministic NLP fallback.")
-
-        # Deterministic NLP-driven heuristic fallback when offline or after API failure
-        fallback_res = self._fallback_trend_extraction(text, region, year, keywords, entities)
-        return self._extraction_payload(fallback_res, "nlp-heuristic-fallback", start_time)
-
-    def _generate_validated(self, prompt: str, schema, retry_delay: float):
-        """
-        Calls Gemini with retries and validates the JSON reply against a Pydantic schema.
-        Returns the validated model, or re-raises the last error once retries are exhausted.
-        """
-        last_error = None
-        for _ in range(max(1, self.retry_count)):
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=prompt
-                )
-                parsed = json.loads(self._clean_json_response(response.text or ""))
-                return schema(**parsed)
-            except Exception as e:
-                last_error = e
-                time.sleep(retry_delay)
-        raise last_error
-
-    @staticmethod
-    def _extraction_payload(result: Dict[str, Any], model: str, start_time: float) -> Dict[str, Any]:
-        """Wraps an extraction result with latency, model, and validation metadata."""
+        validated = self._generate_validated(prompt, TrendExtractionResponse, retry_delay=0.4)
         return {
-            "result": result,
+            "result": validated.model_dump(),
             "latency_ms": round((time.perf_counter() - start_time) * 1000, 2),
-            "model": model,
+            "model": self.model_name,
             "validated": True
         }
+
+    def generate_forecast_cards(
+        self,
+        signals: List[str],
+        region: str = "Pan India",
+        year: str = "2026",
+        query: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Generates bespoke fashion forecasting trend cards directly via Gemini API.
+        No hardcoded base templates or dummy cards are used.
+        """
+        y_int = int(year) if str(year).isdigit() else 2026
+        signals_str = ", ".join(signals) if signals else (query or "contemporary fashion")
+        primary_query = query or (signals[-1] if signals else "contemporary fashion")
+
+        prompt = self.prompt_loader.format_prompt(
+            "signal_forecast",
+            region=region,
+            year=str(y_int),
+            signals=signals_str,
+            query=primary_query,
+            year_minus_1=str(y_int - 1),
+            year_plus_1=str(y_int + 1),
+            year_plus_2=str(y_int + 2),
+            year_plus_3=str(y_int + 3)
+        )
+
+        validated = self._generate_validated(prompt, SignalForecastResponse, retry_delay=0.5)
+        raw_trends = [t.model_dump() for t in validated.trends]
+        return raw_trends
 
     def analyze_trend_semantics(
         self,
@@ -175,7 +221,7 @@ class GeminiFashionClient:
         signal_type: str = "Cultural Trend",
         keywords: List[str] = None
     ) -> TrendAnalysisResponse:
-        """Generates rich commercial trend descriptions and drivers."""
+        """Generates rich commercial trend descriptions and drivers via Gemini."""
         kw_str = ", ".join(keywords or [trend_name])
         prompt = self.prompt_loader.format_prompt(
             "trend_analysis",
@@ -186,81 +232,4 @@ class GeminiFashionClient:
             signal_type=signal_type,
             keywords=kw_str
         )
-
-        if self.is_available and self.client:
-            try:
-                return self._generate_validated(prompt, TrendAnalysisResponse, retry_delay=0.4)
-            except Exception:
-                pass
-
-        return self._fallback_trend_analysis(trend_name, region, year)
-
-    def _fallback_trend_extraction(
-        self,
-        text: str,
-        region: str,
-        year: str,
-        keywords: List[Dict[str, Any]] = None,
-        entities: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
-        """Synthesizes structured trends deterministically from NLP entities when Gemini is offline."""
-        top_kws = [k["keyword"].title() for k in (keywords or [])[:4]]
-        trend_name = f"{top_kws[0]} Modernism" if top_kws else "Contemporary Indian Fusion"
-        
-        garment = "Co-ord Set & Tailored Silhouette"
-        fabric = "Handloom Cotton & Chanderi"
-        color = "Butter Yellow & Chai Earth Tones"
-        aesthetic = "Indo-Western Craftcore"
-        
-        if entities:
-            if entities.get("garments"):
-                garment = entities["garments"][0]["matched_text"].title()
-            if entities.get("fabrics"):
-                fabric = entities["fabrics"][0]["matched_text"].title()
-            if entities.get("colors"):
-                color = entities["colors"][0]["matched_text"].title()
-            if entities.get("aesthetics"):
-                aesthetic = entities["aesthetics"][0]["matched_text"].title()
-
-        sample_trend = ExtractedTrendItem(
-            name=trend_name,
-            category="Indo-Western Fusion & Streetwear",
-            garment=garment,
-            colour=color,
-            material=fabric,
-            silhouette="Relaxed Fluid Silhouette",
-            aesthetic=aesthetic,
-            target_audience="Urban Gen-Z & Millennials (18-32)",
-            regions=[region, "Delhi NCR", "Mumbai", "Bengaluru"],
-            sentiment="Bullish / Accelerating Demand",
-            trend_stage="Growing",
-            drivers=[
-                "Festive adaptability with lightweight breathable textiles",
-                "Digital aesthetic virality on Instagram & Pinterest",
-                "Contemporary redesign of regional artisanal crafts"
-            ],
-            evidence=f"Textual signals emphasize high interest in {', '.join(top_kws[:3])}.",
-            confidence=0.88,
-            market_relevance_score=82.0
-        )
-
-        return {
-            "trends": [sample_trend.model_dump()],
-            "market_synthesis": f"In {year}, the Indian apparel market is prioritizing versatile {aesthetic} styles combining {fabric} with functional silhouettes."
-        }
-
-    def _fallback_trend_analysis(self, trend_name: str, region: str, year: str) -> TrendAnalysisResponse:
-        """Deterministic fallback analysis response."""
-        return TrendAnalysisResponse(
-            description=f"A high-momentum style movement in {region} for {year}, marrying artisanal Indian handloom heritage with clean contemporary tailoring.",
-            strategic_advice="Brands should produce limited-run drops focusing on breathable natural textiles and modular styling.",
-            consumer_drivers=[
-                "Rising youth demand for heritage craft with modern cuts",
-                "Instagram street style and celebrity festive endorsements",
-                "Demand for season-transcending versatile wardrobe staples"
-            ],
-            risks="Price sensitivity on high-grade handloom textiles; rapid fast-fashion copycat cycles.",
-            peak_season="Festive & Autumn / Winter",
-            target_demographic="Urban youth and young working professionals aged 18–35",
-            competitor_activity="Leading boutique D2C labels are integrating these silhouettes into seasonal capsule collections."
-        )
+        return self._generate_validated(prompt, TrendAnalysisResponse, retry_delay=0.4)

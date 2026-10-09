@@ -9,7 +9,7 @@ import { FASHION_KEYWORDS } from "@/components/keywords";
 import Navbar from "@/components/Navbar";
 import AboutSection from "@/components/AboutSection";
 import Footer from "@/components/Footer";
-import { API_BASE } from "@/lib/api";
+import { getApiUrl } from "@/lib/api";
 
 export default function Home() {
   const [region, setRegion] = useState("Pan India");
@@ -18,6 +18,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [cached, setCached] = useState(false);
   const [forecasts, setForecasts] = useState<Trend[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   // Autocomplete search states
   const [inputValue, setInputValue] = useState("");
@@ -97,21 +98,41 @@ export default function Home() {
     if (activeSignals.length === 0) return;
 
     setLoading(true);
+    setError(null);
     try {
       // Pass the exact/latest search term as a URL query parameter for integration pattern
       const latestTerm = activeSignals[activeSignals.length - 1];
-      const url = `/api/forecast?signal=${encodeURIComponent(latestTerm)}`;
+      const url = getApiUrl(`/api/forecast?signal=${encodeURIComponent(latestTerm)}`);
 
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ region, year, signals: activeSignals }),
       });
+      if (!res.ok) {
+        let errorMsg = `Server error (${res.status})`;
+        try {
+          const errData = await res.json();
+          errorMsg = errData.error || errData.details || errorMsg;
+        } catch {
+          try {
+            const rawText = await res.text();
+            if (rawText) errorMsg = rawText.slice(0, 200);
+          } catch {}
+        }
+        throw new Error(errorMsg);
+      }
       const data = await res.json();
       setForecasts(data.forecasts || []);
       setCached(data.cached || false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Forecast error:", err);
+      const isConnectionRefused = err?.message === "Failed to fetch" || err?.name === "TypeError";
+      setError(
+        isConnectionRefused
+          ? "Cannot connect to the backend API. Please ensure the Python Flask backend is running on http://127.0.0.1:5000."
+          : err.message || "Failed to fetch forecasts."
+      );
     } finally {
       setLoading(false);
     }
@@ -241,6 +262,13 @@ export default function Home() {
             </button>
           </form>
         </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="box" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "12px", padding: "16px 20px", color: "#991b1b", marginBottom: "20px", fontSize: "14px" }}>
+            <strong>⚠️ Request Error:</strong> {error}
+          </div>
+        )}
 
         {/* Loading State */}
         {loading && (

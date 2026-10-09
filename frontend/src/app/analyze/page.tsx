@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { API_BASE } from "@/lib/api";
+import { getApiUrl } from "@/lib/api";
 
 export default function AnalyzePage() {
   const [inputText, setInputText] = useState("");
@@ -20,21 +20,37 @@ export default function AnalyzePage() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/analyze`, {
+      const url = getApiUrl("/api/analyze");
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: inputText, region, year }),
       });
 
       if (!res.ok) {
-        throw new Error(`Server returned status ${res.status}`);
+        let errorMsg = `Server error (${res.status})`;
+        try {
+          const errData = await res.json();
+          errorMsg = errData.details || errData.error || errorMsg;
+        } catch {
+          try {
+            const rawText = await res.text();
+            if (rawText) errorMsg = rawText.slice(0, 200);
+          } catch {}
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
       setAnalysisResult(data);
     } catch (err: any) {
       console.error("Analysis error:", err);
-      setError(err.message || "Failed to execute NLP analysis pipeline.");
+      const isConnectionRefused = err?.message === "Failed to fetch" || err?.name === "TypeError";
+      setError(
+        isConnectionRefused
+          ? "Cannot connect to the backend API. Please ensure the Python Flask backend is running on http://127.0.0.1:5000."
+          : err.message || "Failed to execute analysis."
+      );
     } finally {
       setLoading(false);
     }

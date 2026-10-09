@@ -3,14 +3,29 @@
   "services": {
     "frontend": {
       "root": "frontend/",
-      "framework": "nextjs"
+      "framework": "nextjs",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "backend",
+          "format": "url",
+          "env": "BACKEND_URL"
+        }
+      ]
     },
     "backend": {
       "root": "backend/",
+      "framework": "flask",
       "entrypoint": "app.py"
     }
   },
   "rewrites": [
+    {
+      "source": "/api",
+      "destination": {
+        "service": "backend"
+      }
+    },
     {
       "source": "/api/(.*)",
       "destination": {

@@ -5,7 +5,11 @@ Uses Scikit-Learn TF-IDF vectorization boosted with a curated Indian fashion tax
 
 from typing import List, Dict, Any, Set
 from collections import Counter
-from sklearn.feature_extraction.text import TfidfVectorizer
+
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+except ImportError:
+    TfidfVectorizer = None
 
 
 # Curated Indian & Global fashion domain taxonomy for relevance boosting
@@ -50,12 +54,16 @@ FASHION_DOMAIN_TAXONOMY: Dict[str, float] = {
     "structured": 1.2,
     "asymmetrical": 1.3,
     "maxi": 1.2,
+    "bow": 1.4,
+    "bows": 1.4,
+    "ribbon": 1.3,
 
     # Aesthetics & Subcultures (Boost 1.3x)
     "indo-western": 1.4,
     "fusion": 1.3,
     "streetwear": 1.3,
     "minimalist": 1.3,
+    "coquette": 1.4,
     "boho": 1.2,
     "craftcore": 1.4,
     "quiet luxury": 1.3,
@@ -125,20 +133,25 @@ class FashionKeywordExtractor:
             # If short text, split by clauses or words to create pseudo-corpus
             sentences = [text]
 
-        try:
-            vectorizer = TfidfVectorizer(
-                ngram_range=self.ngram_range,
-                stop_words="english",
-                max_features=self.max_features,
-                token_pattern=r"(?u)\b[a-zA-Z\-]{2,}\b"
-            )
-            tfidf_matrix = vectorizer.fit_transform(sentences)
-            feature_names = vectorizer.get_feature_names_out()
-            scores = tfidf_matrix.sum(axis=0).A1
-            
-            raw_keywords = dict(zip(feature_names, scores))
-        except Exception:
-            # Fallback to pure word frequency if TF-IDF fails on irregular text
+        raw_keywords = {}
+        if TfidfVectorizer is not None:
+            try:
+                vectorizer = TfidfVectorizer(
+                    ngram_range=self.ngram_range,
+                    stop_words="english",
+                    max_features=self.max_features,
+                    token_pattern=r"(?u)\b[a-zA-Z\-]{2,}\b"
+                )
+                tfidf_matrix = vectorizer.fit_transform(sentences)
+                feature_names = vectorizer.get_feature_names_out()
+                scores = tfidf_matrix.sum(axis=0).A1
+                
+                raw_keywords = dict(zip(feature_names, scores))
+            except Exception:
+                raw_keywords = {}
+
+        if not raw_keywords:
+            # Fallback to pure word frequency if TF-IDF fails or sklearn unavailable
             words = [w.lower() for w in text.split() if len(w) > 3]
             counts = Counter(words)
             total = max(1, sum(counts.values()))
