@@ -2,22 +2,20 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKEND_DIR = os.path.dirname(CURRENT_DIR)
-ROOT_DIR = os.path.dirname(BACKEND_DIR)
-
-BACKEND_PROMPTS_DIR = os.path.join(BACKEND_DIR, 'prompts')
-PROMPTS_DIR = os.path.join(ROOT_DIR, 'prompts')
+# Dynamically find the absolute path to the root context
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROMPTS_DIR = os.path.join(BASE_DIR, 'prompts')
+BACKEND_PROMPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'prompts')
 
 
 def load_prompt(filename: str) -> str:
     """
     Safely load a prompt template from disk using absolute anchoring.
-    Checks backend/prompts first, then falls back to root prompts.
+    Checks root PROMPTS_DIR first, then falls back to backend/prompts.
     """
-    path = os.path.join(BACKEND_PROMPTS_DIR, filename)
+    path = os.path.join(PROMPTS_DIR, filename)
     if not os.path.exists(path):
-        alt_path = os.path.join(PROMPTS_DIR, filename)
+        alt_path = os.path.join(BACKEND_PROMPTS_DIR, filename)
         if os.path.exists(alt_path):
             path = alt_path
     with open(path, 'r', encoding='utf-8') as f:
@@ -36,14 +34,14 @@ class PromptLoader:
         if prompts_dir:
             self.prompts_dir = Path(prompts_dir)
         else:
-            if os.path.exists(BACKEND_PROMPTS_DIR):
-                self.prompts_dir = Path(BACKEND_PROMPTS_DIR)
-            elif os.path.exists(PROMPTS_DIR):
+            if os.path.exists(PROMPTS_DIR):
                 self.prompts_dir = Path(PROMPTS_DIR)
+            elif os.path.exists(BACKEND_PROMPTS_DIR):
+                self.prompts_dir = Path(BACKEND_PROMPTS_DIR)
             else:
                 raise FileNotFoundError(
                     "Could not locate the prompts directory. "
-                    f"Checked '{BACKEND_PROMPTS_DIR}' and '{PROMPTS_DIR}'."
+                    f"Checked '{PROMPTS_DIR}' and '{BACKEND_PROMPTS_DIR}'."
                 )
 
         self._cache: Dict[str, str] = {}

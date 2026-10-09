@@ -9,7 +9,7 @@ import { FASHION_KEYWORDS } from "@/components/keywords";
 import Navbar from "@/components/Navbar";
 import AboutSection from "@/components/AboutSection";
 import Footer from "@/components/Footer";
-import { getApiUrl } from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 
 export default function Home() {
   const [region, setRegion] = useState("Pan India");
@@ -18,7 +18,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [cached, setCached] = useState(false);
   const [forecasts, setForecasts] = useState<Trend[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
   // Autocomplete search states
   const [inputValue, setInputValue] = useState("");
@@ -80,7 +79,7 @@ export default function Home() {
     e.preventDefault();
 
     const activeSignals = [...signals];
-
+    
     // Automatically add whatever is left in the text box if not empty
     if (inputValue.trim()) {
       const cleanTag = inputValue.trim().toLowerCase();
@@ -98,7 +97,6 @@ export default function Home() {
     if (activeSignals.length === 0) return;
 
     setLoading(true);
-    setError(null);
     try {
       // Pass the exact/latest search term as a URL query parameter for integration pattern
       const latestTerm = activeSignals[activeSignals.length - 1];
@@ -109,30 +107,11 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ region, year, signals: activeSignals }),
       });
-      if (!res.ok) {
-        let errorMsg = `Server error (${res.status})`;
-        try {
-          const errData = await res.json();
-          errorMsg = errData.error || errData.details || errorMsg;
-        } catch {
-          try {
-            const rawText = await res.text();
-            if (rawText) errorMsg = rawText.slice(0, 200);
-          } catch { }
-        }
-        throw new Error(errorMsg);
-      }
       const data = await res.json();
       setForecasts(data.forecasts || []);
       setCached(data.cached || false);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Forecast error:", err);
-      const isConnectionRefused = err?.message === "Failed to fetch" || err?.name === "TypeError";
-      setError(
-        isConnectionRefused
-          ? "Unable to reach the backend forecasting API (/api/forecast). Please ensure the backend service is deployed and active."
-          : err.message || "Failed to fetch forecasts."
-      );
     } finally {
       setLoading(false);
     }
@@ -141,7 +120,7 @@ export default function Home() {
   return (
     <>
       <Navbar />
-
+      
       <div className="container">
         {/* Hero */}
         <div id="hero" className="hero box hero-box">
@@ -185,7 +164,7 @@ export default function Home() {
             </div>
 
             <h2>Trend Signals</h2>
-
+            
             {/* Tag container for active selections */}
             {signals.length > 0 && (
               <div className="tag-container">
@@ -262,13 +241,6 @@ export default function Home() {
             </button>
           </form>
         </div>
-
-        {/* Error State */}
-        {error && (
-          <div className="box" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "12px", padding: "16px 20px", color: "#991b1b", marginBottom: "20px", fontSize: "14px" }}>
-            <strong>⚠️ Request Error:</strong> {error}
-          </div>
-        )}
 
         {/* Loading State */}
         {loading && (

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { getApiUrl } from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 
 export default function AnalyzePage() {
   const [inputText, setInputText] = useState("");
@@ -20,37 +20,21 @@ export default function AnalyzePage() {
     setError(null);
 
     try {
-      const url = "/api/analyze";
-      const res = await fetch(url, {
+      const res = await fetch(`${API_BASE}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: inputText, region, year }),
       });
 
       if (!res.ok) {
-        let errorMsg = `Server error (${res.status})`;
-        try {
-          const errData = await res.json();
-          errorMsg = errData.details || errData.error || errorMsg;
-        } catch {
-          try {
-            const rawText = await res.text();
-            if (rawText) errorMsg = rawText.slice(0, 200);
-          } catch { }
-        }
-        throw new Error(errorMsg);
+        throw new Error(`Server returned status ${res.status}`);
       }
 
       const data = await res.json();
       setAnalysisResult(data);
     } catch (err: any) {
       console.error("Analysis error:", err);
-      const isConnectionRefused = err?.message === "Failed to fetch" || err?.name === "TypeError";
-      setError(
-        isConnectionRefused
-          ? "Unable to reach the backend analysis API (/api/analyze). Please ensure the backend service is deployed and active."
-          : err.message || "Failed to execute analysis."
-      );
+      setError(err.message || "Failed to execute NLP analysis pipeline.");
     } finally {
       setLoading(false);
     }

@@ -33,9 +33,6 @@ except ImportError:
 try:
     from dotenv import load_dotenv
     load_dotenv()
-    root_env = os.path.join(os.path.dirname(backend_dir), ".env")
-    if os.path.exists(root_env):
-        load_dotenv(root_env)
 except ImportError:
     pass
 
@@ -131,7 +128,6 @@ def get_json_body():
 
 
 @app.route("/", methods=["GET"])
-@app.route("/api", methods=["GET"])
 def home():
     """Root JSON endpoint showing backend NLP & LLM system status."""
     return jsonify({
@@ -139,7 +135,7 @@ def home():
         "system": "AI-Powered Fashion Trend Intelligence & Forecasting System",
         "academic_discipline": "Natural Language Processing (NLP) & Large Language Models (LLM)",
         "framework": "Flask / Python 3.12",
-        "llm_engine": f"Google Gemini API ({app_config.get('llm', {}).get('model', 'gemini-2.5-flash')})",
+        "llm_engine": f"Google Gemini API ({app_config.get('llm', {}).get('model', 'gemini-3.8-flash')})",
         "nlp_pipeline": {
             "modules": ["Preprocessing", "TF-IDF Keyword Extraction", "Named Entity Recognition", "Fashion Sentiment Analysis", "Trend Intelligence Scoring"],
             "status": "online"
@@ -153,7 +149,6 @@ def home():
     })
 
 
-@app.route("/config", methods=["GET"])
 @app.route("/api/config", methods=["GET"])
 def get_config():
     """Returns strictly safe, non-sensitive configuration settings for UI clients."""
@@ -165,7 +160,7 @@ def get_config():
         }),
         "llm": {
             "provider": app_config.get("llm", {}).get("provider", "google"),
-            "model": app_config.get("llm", {}).get("model", "gemini-2.5-flash"),
+            "model": app_config.get("llm", {}).get("model", "gemini-3.8-flash"),
             "temperature": app_config.get("llm", {}).get("temperature", 0.2),
             "max_output_tokens": app_config.get("llm", {}).get("max_output_tokens", 2048),
             "retry_count": app_config.get("llm", {}).get("retry_count", 2)
@@ -194,13 +189,9 @@ def get_config():
     })
 
 
-@app.route("/forecast", methods=["POST", "GET"])
-@app.route("/api/forecast", methods=["POST", "GET"])
+@app.route("/api/forecast", methods=["POST"])
 def api_forecast():
     """JSON API endpoint for multi-signal forecasting with Redis caching."""
-    if request.method == "GET":
-        return jsonify({"status": "ready", "endpoint": "/api/forecast", "method": "POST required with {region, year, signals}"})
-
     t_start = time.perf_counter()
     data = get_json_body()
 
@@ -231,10 +222,10 @@ def api_forecast():
 
     try:
         forecasts = generate_forecast(region=region, year=year, signals=signals, query=query_signal)
-    except Exception as ex:
+    except Exception:
         print("[ERROR] generate_forecast failed:")
         traceback.print_exc()
-        return jsonify({"error": f"Forecast generation failed: {str(ex)}"}), 500
+        forecasts = []
 
     cache_set(cache_key, forecasts)
 
@@ -242,16 +233,12 @@ def api_forecast():
     return jsonify({"forecasts": forecasts, "cached": False, "latency_ms": total_latency_ms})
 
 
-@app.route("/analyze", methods=["POST", "GET"])
-@app.route("/api/analyze", methods=["POST", "GET"])
+@app.route("/api/analyze", methods=["POST"])
 def api_analyze():
     """
     Dedicated NLP + LLM Fashion Text Analysis API.
     Accepts raw text, executes NLP pipeline and Gemini semantic extraction, and returns structured intelligence.
     """
-    if request.method == "GET":
-        return jsonify({"status": "ready", "endpoint": "/api/analyze", "method": "POST required with {text, region, year}"})
-
     t_start = time.perf_counter()
     data = get_json_body()
 
