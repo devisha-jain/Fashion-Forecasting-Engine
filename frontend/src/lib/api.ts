@@ -1,20 +1,15 @@
 /**
- * Resolves the API base URL safely across local and production Vercel environments.
+ * Resolves API endpoints.
+ * Always returns relative paths (e.g. "/api/forecast", "/api/analyze")
+ * so that both local Next.js dev server and deployed Vercel apps route correctly.
  */
 export function getApiBase(): string {
   const envUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/\/$/, "");
-
-  // In the browser, if NEXT_PUBLIC_API_URL is localhost or empty, use same-origin relative URLs.
-  // This lets Next.js dev server proxy /api/* to http://127.0.0.1:5000 without CORS or IPv6 binding issues,
-  // and allows Vercel deployments to route /api/* directly.
-  if (typeof window !== "undefined") {
-    const isLocalhostEnv = envUrl.includes("localhost") || envUrl.includes("127.0.0.1");
-    if (!envUrl || isLocalhostEnv) {
-      return "";
-    }
+  // Ignore localhost or 127.0.0.1 in production to prevent browser connection errors
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl;
   }
-
-  return envUrl;
+  return "";
 }
 
 export function getApiUrl(path: string): string {
@@ -23,5 +18,5 @@ export function getApiUrl(path: string): string {
   return base ? `${base}${cleanPath}` : cleanPath;
 }
 
-export const API_BASE = getApiBase();
+export const API_BASE = "";
 

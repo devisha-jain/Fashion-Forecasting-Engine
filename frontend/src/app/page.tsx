@@ -80,7 +80,7 @@ export default function Home() {
     e.preventDefault();
 
     const activeSignals = [...signals];
-    
+
     // Automatically add whatever is left in the text box if not empty
     if (inputValue.trim()) {
       const cleanTag = inputValue.trim().toLowerCase();
@@ -102,7 +102,7 @@ export default function Home() {
     try {
       // Pass the exact/latest search term as a URL query parameter for integration pattern
       const latestTerm = activeSignals[activeSignals.length - 1];
-      const url = getApiUrl(`/api/forecast?signal=${encodeURIComponent(latestTerm)}`);
+      const url = `/api/forecast?signal=${encodeURIComponent(latestTerm)}`;
 
       const res = await fetch(url, {
         method: "POST",
@@ -118,7 +118,7 @@ export default function Home() {
           try {
             const rawText = await res.text();
             if (rawText) errorMsg = rawText.slice(0, 200);
-          } catch {}
+          } catch { }
         }
         throw new Error(errorMsg);
       }
@@ -130,7 +130,7 @@ export default function Home() {
       const isConnectionRefused = err?.message === "Failed to fetch" || err?.name === "TypeError";
       setError(
         isConnectionRefused
-          ? "Cannot connect to the backend API. Please ensure the Python Flask backend is running on http://127.0.0.1:5000."
+          ? "Unable to reach the backend forecasting API (/api/forecast). Please ensure the backend service is deployed and active."
           : err.message || "Failed to fetch forecasts."
       );
     } finally {
@@ -141,7 +141,7 @@ export default function Home() {
   return (
     <>
       <Navbar />
-      
+
       <div className="container">
         {/* Hero */}
         <div id="hero" className="hero box hero-box">
@@ -185,7 +185,7 @@ export default function Home() {
             </div>
 
             <h2>Trend Signals</h2>
-            
+
             {/* Tag container for active selections */}
             {signals.length > 0 && (
               <div className="tag-container">

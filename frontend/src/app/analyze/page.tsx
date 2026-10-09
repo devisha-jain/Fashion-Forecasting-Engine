@@ -20,7 +20,7 @@ export default function AnalyzePage() {
     setError(null);
 
     try {
-      const url = getApiUrl("/api/analyze");
+      const url = "/api/analyze";
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,7 +36,7 @@ export default function AnalyzePage() {
           try {
             const rawText = await res.text();
             if (rawText) errorMsg = rawText.slice(0, 200);
-          } catch {}
+          } catch { }
         }
         throw new Error(errorMsg);
       }
@@ -48,7 +48,7 @@ export default function AnalyzePage() {
       const isConnectionRefused = err?.message === "Failed to fetch" || err?.name === "TypeError";
       setError(
         isConnectionRefused
-          ? "Cannot connect to the backend API. Please ensure the Python Flask backend is running on http://127.0.0.1:5000."
+          ? "Unable to reach the backend analysis API (/api/analyze). Please ensure the backend service is deployed and active."
           : err.message || "Failed to execute analysis."
       );
     } finally {
