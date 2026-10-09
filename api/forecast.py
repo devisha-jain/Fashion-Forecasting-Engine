@@ -13,5 +13,11 @@ if backend_dir not in sys.path:
 
 from backend.app import app
 
-handler = app
+def handler(environ, start_response):
+    path = environ.get("PATH_INFO", "")
+    if path == "/" or not path or path == "/api" or path == "/forecast":
+        environ["PATH_INFO"] = "/api/forecast"
+    return app(environ, start_response)
+
+# Also expose app directly for WSGI environments
 application = app
