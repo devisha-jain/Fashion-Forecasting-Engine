@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     const apiKey = (
       process.env.GEMINI_API_KEY ||
-      "AIzaSyA03LxYn6EOviCclyRjgO505L_6lgqKY9U"
+      "AQ.Ab8RN6LM4ZWgSh0QCWXhzpfUCygwe5biiUj5r1c_LDWEfmDPQ"
     ).trim().replace(/["']/g, "");
 
     const prompt = `You are a Principal Fashion Trend Intelligence Forecaster for Indian retail and runway markets.
@@ -59,37 +59,48 @@ Return a STRICTLY valid JSON object matching this schema (NO markdown formatting
   ]
 }`;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.2
+    const candidateModels = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-pro-latest"];
+    let parsed: any = null;
+    let lastError = "";
+
+    for (const model of candidateModels) {
+      try {
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.2
+              }
+            })
           }
-        })
+        );
+
+        if (geminiRes.ok) {
+          const resJson = await geminiRes.json();
+          const rawReply = resJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          if (rawReply) {
+            const clean = rawReply.replace(/```json/g, "").replace(/```/g, "").trim();
+            const p = JSON.parse(clean);
+            if (Array.isArray(p.trends) && p.trends.length > 0) {
+              parsed = p;
+              break;
+            }
+          }
+        } else {
+          lastError = await geminiRes.text();
+        }
+      } catch (err: any) {
+        lastError = err?.message || String(err);
       }
-    );
-
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      throw new Error(`Google Gemini API error (${geminiRes.status}): ${errText}`);
     }
 
-    const resJson = await geminiRes.json();
-    const rawReply = resJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    if (!rawReply) {
-      throw new Error("Gemini API returned an empty response. Please check API quota or parameters.");
-    }
-
-    const clean = rawReply.replace(/```json/g, "").replace(/```/g, "").trim();
-    const parsed = JSON.parse(clean);
-
-    if (!Array.isArray(parsed.trends) || parsed.trends.length === 0) {
-      throw new Error("Gemini API did not return structured trend cards. Please retry.");
+    if (!parsed || !Array.isArray(parsed.trends) || parsed.trends.length === 0) {
+      throw new Error(`Google Gemini API error across models: ${lastError}`);
     }
 
     const yInt = parseInt(year) || 2026;
@@ -140,7 +151,7 @@ Return a STRICTLY valid JSON object matching this schema (NO markdown formatting
           "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&q=80",
           "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=600&q=80"
         ],
-        sources: ["Google Gemini API (gemini-2.5-flash)", "Live Signal Intelligence"]
+        sources: ["Google Gemini API (gemini-3.8-flash)", "Live Signal Intelligence"]
       };
     });
 

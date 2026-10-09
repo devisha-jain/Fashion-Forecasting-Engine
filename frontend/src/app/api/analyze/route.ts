@@ -269,7 +269,7 @@ export async function POST(req: NextRequest) {
     // Stage 5: 100% Dynamic Intelligence from Google Gemini API
     const apiKey = (
       process.env.GEMINI_API_KEY ||
-      "AIzaSyA03LxYn6EOviCclyRjgO505L_6lgqKY9U"
+      "AQ.Ab8RN6LM4ZWgSh0QCWXhzpfUCygwe5biiUj5r1c_LDWEfmDPQ"
     ).trim().replace(/["']/g, "");
 
     const topKwStr = keywords.slice(0, 8).map((k) => k.keyword).join(", ");
@@ -322,34 +322,48 @@ Return a STRICTLY valid JSON object matching this schema (NO markdown backticks,
   ]
 }`;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.2
+    const candidateModels = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-pro-latest"];
+    let geminiData: any = null;
+    let successfulModel = "gemini-3.8-flash";
+    let lastError = "";
+
+    for (const model of candidateModels) {
+      try {
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.2
+              }
+            })
           }
-        })
+        );
+
+        if (geminiRes.ok) {
+          const resJson = await geminiRes.json();
+          const rawReply = resJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          if (rawReply) {
+            const cleanJson = rawReply.replace(/```json/g, "").replace(/```/g, "").trim();
+            geminiData = JSON.parse(cleanJson);
+            successfulModel = model;
+            break;
+          }
+        } else {
+          lastError = await geminiRes.text();
+        }
+      } catch (err: any) {
+        lastError = err?.message || String(err);
       }
-    );
-
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      throw new Error(`Google Gemini API error (${geminiRes.status}): ${errText}`);
     }
 
-    const resJson = await geminiRes.json();
-    const rawReply = resJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    if (!rawReply) {
-      throw new Error("Gemini API returned an empty response. Please check input text or API quota.");
+    if (!geminiData) {
+      throw new Error(`Google Gemini API call failed: ${lastError}`);
     }
-
-    const cleanJson = rawReply.replace(/```json/g, "").replace(/```/g, "").trim();
-    const geminiData = JSON.parse(cleanJson);
 
     const totalLatency = Date.now() - startTime;
 
@@ -366,7 +380,7 @@ Return a STRICTLY valid JSON object matching this schema (NO markdown backticks,
       market_synthesis: geminiData.market_synthesis || "",
       metadata: {
         processing_time_ms: totalLatency,
-        llm_model: "gemini-2.5-flash",
+        llm_model: successfulModel,
         region,
         year,
         cached: false
